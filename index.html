@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.4 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>The Adventure of The Goose</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one-screen arcade board — HUD strip, goose journey track, two-column match board; each level repaints the land behind it. */
+:root{
+  --ink:#1e1e1e;
+  --paper:#e3e3e3;
+  --paper-2:#cfcfcf;
+  --beak:#f08a1c;
+  --gold:#f5c542;
+  --pond:#2e9e4f;
+  --berry:#c62828;
+  --muted:#4d4d4d;
+  --grass:#5aa83a; --dirt:#8b5a2b;
+  --s1:#6fb7ff; --s2:#86c5ff; --s3:#a3d4ff; --s4:#c3e4ff;
+  --sky-a:#6fb7ff; --sky-b:#c3e4ff; --ground:#5aa83a;
+  --hi:rgba(255,255,255,.55); --lo:rgba(0,0,0,.28);
+  --display:"Pixelify Sans","Courier New",monospace;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{
+  background:linear-gradient(180deg,var(--sky-a) 0%,var(--sky-b) 70%,var(--ground) 100%) fixed var(--sky-a);
+  color:var(--ink);font-family:var(--body);font-size:16px;
+  transition:background .6s;
+}
+body.l2{--sky-a:#ff9e5e;--sky-b:#ffd38a;--ground:#c9772f}
+body.l3{--sky-a:#1b1d4f;--sky-b:#3a2f7a;--ground:#141638}
+body.l3::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(2px 2px at 12% 18%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 30% 8%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 52% 22%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 74% 12%,#fff 50%,transparent 51%),radial-gradient(2px 2px at 90% 30%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 8% 48%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 96% 60%,#fff 50%,transparent 51%);}
+.wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 32px;
+  display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:.5px;text-wrap:balance;margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:4px solid var(--beak);outline-offset:3px}
+
+.panel{background:var(--paper);border:3px solid var(--ink);border-radius:18px;box-shadow:0 6px 0 var(--ink);padding:20px}
+.btn{font-family:var(--display);font-size:1.25rem;letter-spacing:.5px;background:var(--beak);color:var(--ink);border:3px solid var(--ink);border-radius:14px;padding:12px 26px;box-shadow:0 5px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 7px 0 var(--ink)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn.alt{background:var(--paper)}
+.btn.small{font-size:1rem;padding:8px 14px;box-shadow:0 4px 0 var(--ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+
+/* ---------- start screen ---------- */
+.title-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center}
+.title-card h1{font-size:clamp(2.1rem,6vw,3.6rem);line-height:1;color:var(--ink)}
+.title-card h1 span{color:var(--beak);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill}
+.kicker{font-family:var(--display);color:var(--pond);font-size:1rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.story{max-width:60ch;line-height:1.55;margin:12px 0 0}
+.hero-goose{width:clamp(120px,22vw,200px)}
+.lands{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.land{border:3px solid var(--ink);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.land b{font-family:var(--display);font-weight:400;font-size:1.15rem}
+.land small{font-size:.85rem;line-height:1.35}
+.land .tag{font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+.land.l1{background:#d9f5c9}.land.l2{background:#ffe0b8}.land.l3{background:#d6d3ff}
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 22px;margin:0;padding:0;list-style:none}
+.rules li{display:flex;gap:10px;align-items:flex-start;line-height:1.4;font-size:.95rem}
+.rules .ic{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:.9rem}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.best{font-size:.9rem;color:var(--muted)}
+
+/* ---------- HUD ---------- */
+.hud{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr)) auto;gap:8px;align-items:stretch}
+.hud .cell{background:var(--paper);border:3px solid var(--ink);border-radius:12px;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.hud .lbl{font-size:.68rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.hud .val{font-family:var(--display);font-size:1.35rem;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hud .lvl{background:var(--ink);color:var(--paper)}
+.hud .lvl .lbl{color:var(--gold)}
+.timer.warn .val{color:var(--berry);animation:pulse .5s infinite alternate}
+.feathers{display:flex;gap:2px}
+.feathers svg{width:22px;height:22px}
+.feathers .lost{opacity:.18;filter:grayscale(1)}
+.iconbtn{background:var(--paper);border:3px solid var(--ink);border-radius:12px;width:52px;display:grid;place-items:center;font-size:1.3rem}
+.combo .val{color:var(--pond)}
+.combo.hot .val{color:var(--beak);animation:pulse .35s infinite alternate}
+
+/* ---------- journey track ---------- */
+.track{position:relative;height:74px;border:3px solid var(--ink);border-radius:40px;background:var(--paper-2);overflow:hidden}
+.track .path{position:absolute;left:24px;right:64px;bottom:14px;border-bottom:4px dashed var(--muted)}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#c7f0ea,#9fe4da);transition:width .6s cubic-bezier(.3,1.4,.5,1)}
+.track .goal{position:absolute;right:12px;bottom:8px;width:44px;height:44px}
+.track .walker{position:absolute;bottom:6px;left:6px;width:66px;transition:left .7s cubic-bezier(.3,1.4,.5,1)}
+.speech{position:absolute;left:84px;top:8px;right:70px;font-weight:700;font-size:.92rem;line-height:1.25;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:left .7s cubic-bezier(.3,1.4,.5,1)}
+
+/* ---------- board ---------- */
+.board-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;color:var(--paper)}
+body.l1 .board-head,body.l2 .board-head{color:var(--ink)}
+.board-head h2{font-size:clamp(1.3rem,3.5vw,1.8rem)}
+.board-head p{margin:0;font-size:.9rem;font-weight:700}
+.board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:14px}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.col-h{font-family:var(--display);font-size:.95rem;letter-spacing:1.5px;text-transform:uppercase;background:var(--ink);color:var(--paper);border-radius:10px;padding:4px 12px;align-self:flex-start}
+.card{position:relative;text-align:left;background:var(--paper);border:3px solid var(--ink);border-radius:14px;padding:12px 14px;box-shadow:0 4px 0 var(--ink);min-height:58px;line-height:1.3;transition:transform .12s,background .15s,box-shadow .12s;overflow-wrap:anywhere}
+.card.idiom{font-family:var(--display);font-size:clamp(1rem,2.4vw,1.25rem);letter-spacing:.3px;padding-left:44px}
+.card.idiom::before{content:"";position:absolute;left:12px;top:50%;width:20px;height:26px;margin-top:-13px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:var(--paper-2);border:2.5px solid var(--ink)}
+.card.idiom.golden::before{background:var(--gold);box-shadow:0 0 0 3px #fff3c4,0 0 14px 4px var(--gold);animation:glint 1.4s infinite alternate}
+.card.meaning{font-size:clamp(.92rem,2.2vw,1.05rem)}
+.card:hover:not(.done){transform:translateY(-2px);box-shadow:0 6px 0 var(--ink)}
+.card.sel{background:var(--gold);transform:translateY(-3px) rotate(-1deg);box-shadow:0 7px 0 var(--ink)}
+.card.hint{animation:hintglow .6s 3;background:#fff3c4}
+.card.bad{background:var(--berry);color:#fff;animation:shake .4s}
+.card.done{background:var(--pond);color:#fff;border-color:var(--ink);box-shadow:0 2px 0 var(--ink);transform:scale(.97);cursor:default;opacity:.9}
+.card.done.idiom::before{background:#fff;border-color:#fff}
+.card.pop{animation:pop .45s}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+/* ---------- overlay ---------- */
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(20,22,48,.55);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.modal{max-width:620px;width:100%;display:flex;flex-direction:column;gap:14px;animation:drop .45s cubic-bezier(.3,1.5,.5,1)}
+.modal h2{font-size:clamp(1.7rem,5vw,2.4rem)}
+.modal .sub{margin:0;line-height:1.5}
+.stars{display:flex;gap:6px}
+.stars svg{width:46px;height:46px}
+.stars .off{opacity:.2}
+.tally{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-variant-numeric:tabular-nums;margin:0}
+.tally dt{color:var(--muted)}
+.tally dd{margin:0;font-weight:700;text-align:right}
+.tally .tot{font-family:var(--display);font-size:1.4rem;color:var(--ink);border-top:3px solid var(--ink);padding-top:6px}
+.badge{display:inline-block;font-family:var(--display);background:var(--ink);color:var(--gold);border-radius:999px;padding:4px 14px;letter-spacing:.5px;align-self:flex-start}
+
+.review{width:100%;border-collapse:collapse;font-size:.9rem}
+.review-wrap{overflow-x:auto;max-height:46vh;border:2px solid var(--ink);border-radius:12px}
+.review th{position:sticky;top:0;background:var(--ink);color:var(--paper);text-align:left;padding:8px 10px;font-size:.72rem;letter-spacing:1.4px;text-transform:uppercase}
+.review td{padding:8px 10px;border-top:1px solid #dfe3ee;vertical-align:top;line-height:1.35}
+.review td:first-child{font-weight:700;white-space:nowrap}
+.review td.ex{color:var(--muted);font-style:italic}
+.review tr.lvh td{background:var(--paper-2);font-family:var(--display);font-style:normal;color:var(--ink);letter-spacing:.5px}
+
+/* ---------- fx ---------- */
+.fx{position:fixed;inset:0;pointer-events:none;z-index:30;overflow:hidden}
+.float{position:absolute;font-family:var(--display);font-size:1.6rem;color:var(--gold);-webkit-text-stroke:1.5px var(--ink);paint-order:stroke fill;animation:rise 1s ease-out forwards;white-space:nowrap}
+.float.neg{color:var(--berry)}
+.feather{position:absolute;width:14px;height:22px;border-radius:50% 50% 50% 50%/70% 70% 30% 30%;background:#fff;border:1.5px solid var(--ink);animation:fall 1.1s ease-out forwards}
+
+/* goose anim */
+.goose .wing{transform-origin:62px 56px}
+.goose.flap .wing{animation:flap .18s 6 alternate}
+.goose.honk{animation:honk .45s}
+.goose.walk{animation:bob .35s 4 alternate}
+.hero-goose .goose{animation:bob 1.2s infinite alternate}
+
+@keyframes pulse{to{transform:scale(1.08)}}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+@keyframes pop{40%{transform:scale(1.08)}}
+@keyframes hintglow{50%{box-shadow:0 0 0 5px var(--gold),0 4px 0 var(--ink)}}
+@keyframes glint{to{box-shadow:0 0 0 3px #fff3c4,0 0 22px 8px var(--gold)}}
+@keyframes drop{from{transform:translateY(-30px) scale(.95);opacity:0}}
+@keyframes rise{to{transform:translateY(-70px);opacity:0}}
+@keyframes fall{to{transform:translate(var(--dx),110px) rotate(var(--rot));opacity:0}}
+@keyframes flap{to{transform:rotate(-28deg)}}
+@keyframes honk{25%{transform:rotate(-8deg) scale(1.08)}50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}
+@keyframes bob{to{transform:translateY(-4px)}}
+
+
+/* ---------- live class board ---------- */
+.lobby{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.join{display:flex;flex-direction:column;gap:12px}
+.join label{font-family:var(--display);font-size:1.3rem}
+.join input{font:inherit;font-size:1.2rem;font-weight:700;padding:12px 14px;border:3px solid var(--ink);border-radius:12px;background:var(--paper-2);color:var(--ink);min-width:0;width:100%}
+.join input:focus-visible{outline:4px solid var(--beak);outline-offset:2px;background:#fff}
+.err{color:var(--berry);font-weight:700;margin:0;min-height:1.3em}
+.lb-panel{display:flex;flex-direction:column;gap:10px}
+.lb-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.lb-head h3{font-size:1.3rem}
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--berry)}
+.live-dot::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--berry);animation:pulse .8s infinite alternate}
+.lb{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}
+.lb li{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:7px 10px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);font-variant-numeric:tabular-nums}
+.lb li.me{background:#fff3c4;box-shadow:inset 0 0 0 2px var(--beak)}
+.lb .rk{font-family:var(--display);font-size:1.05rem;text-align:center}
+.lb li:nth-child(1) .rk{color:#c99400}.lb li:nth-child(2) .rk{color:#7d8597}.lb li:nth-child(3) .rk{color:#b5622a}
+.lb .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb .st{font-size:.72rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-radius:999px;padding:2px 8px;background:var(--paper-2);border:1.5px solid var(--ink);white-space:nowrap}
+.lb .st.fin{background:var(--pond);color:#fff}
+.lb .sc{font-family:var(--display);font-size:1.15rem;min-width:3.2em;text-align:right}
+.lb .empty{display:block;border-style:dashed;color:var(--muted);text-align:center;padding:16px}
+.lb-note{font-size:.85rem;color:var(--muted);margin:0;line-height:1.4}
+.teacher{border:3px dashed var(--ink);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--paper-2)}
+.teacher b{font-family:var(--display);font-weight:400;font-size:1.05rem}
+.play-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:14px;align-items:start}
+.play-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.play-aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);padding:14px}
+.play-aside .lb{max-height:60vh}
+.play-aside .lb li{grid-template-columns:1.8em minmax(0,1fr) auto;padding:6px 8px}
+.play-aside .lb .st{display:none}
+.wait{display:flex;flex-direction:column;gap:6px}
+.meter{height:16px;border:3px solid var(--ink);border-radius:999px;background:var(--paper-2);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--pond);transition:width .5s}
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end;text-align:center}
+.pod{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.pod .nm{font-family:var(--display);font-size:clamp(1rem,3vw,1.4rem);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod .sc{font-weight:700;font-variant-numeric:tabular-nums}
+.pod .block{width:100%;border:3px solid var(--ink);border-radius:12px 12px 0 0;display:grid;place-items:center;font-family:var(--display);font-size:2.2rem;box-shadow:0 5px 0 var(--ink)}
+.pod.p1 .block{height:150px;background:var(--gold)}
+.pod.p2 .block{height:110px;background:#dfe5f0}
+.pod.p3 .block{height:80px;background:#f3b58a}
+.pod .goose{width:64px}
+.pod.p1 .goose{width:84px;animation:bob .6s infinite alternate}
+.pod.vacant{visibility:hidden}
+details.more summary{cursor:pointer;font-family:var(--display);font-size:1.15rem}
+details.more[open] summary{margin-bottom:10px}
+
+/* ================= BLOCK-CRAFT SKIN ================= */
+*,*::before,*::after{border-radius:0!important}
+body{background:linear-gradient(180deg,var(--s1) 0 22%,var(--s2) 22% 44%,var(--s3) 44% 66%,var(--s4) 66% 100%) fixed var(--s1)}
+body.l2{--s1:#e8743b;--s2:#f2934a;--s3:#f8b45f;--s4:#fcd27f;--grass:#e3c77a;--dirt:#c79a52}
+body.l3{--s1:#0f1030;--s2:#17193f;--s3:#20224f;--s4:#2b2c63;--grass:#5b3f8c;--dirt:#2a2340}
+body::before{content:"";position:fixed;left:0;right:0;bottom:0;height:76px;z-index:0;pointer-events:none;
+  background:
+    linear-gradient(var(--grass),var(--grass)) top/100% 14px no-repeat,
+    repeating-linear-gradient(90deg,var(--grass) 0 8px,transparent 8px 20px) 0 14px/100% 8px no-repeat,
+    repeating-linear-gradient(90deg,rgba(0,0,0,.16) 0 8px,transparent 8px 28px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.08) 0 8px,transparent 8px 20px),
+    var(--dirt)}
+body.l1::after,body.l2::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.9;
+  background:
+    linear-gradient(#fff,#fff) 8% 9%/128px 24px no-repeat,
+    linear-gradient(#fff,#fff) calc(8% + 24px) calc(9% - 22px)/72px 24px no-repeat,
+    linear-gradient(#fff,#fff) 70% 16%/160px 24px no-repeat,
+    linear-gradient(#fff,#fff) calc(70% + 40px) calc(16% - 22px)/80px 24px no-repeat,
+    linear-gradient(#fff,#fff) 40% 30%/96px 16px no-repeat}
+body.l3::after{background:
+    linear-gradient(#fff,#fff) 12% 18%/4px 4px no-repeat,linear-gradient(#fff,#fff) 30% 8%/4px 4px no-repeat,
+    linear-gradient(#fff,#fff) 52% 22%/6px 6px no-repeat,linear-gradient(#fff,#fff) 74% 12%/4px 4px no-repeat,
+    linear-gradient(#fff,#fff) 90% 30%/4px 4px no-repeat,linear-gradient(#fff,#fff) 8% 48%/4px 4px no-repeat,
+    linear-gradient(#fff,#fff) 96% 60%/4px 4px no-repeat,linear-gradient(#f5f0c8,#f5f0c8) 84% 6%/36px 36px no-repeat}
+.wrap{padding-bottom:96px}
+.panel,.hud .cell,.iconbtn,.track,.land,.lb li,.card,.btn,.teacher,.meter,.review-wrap,.join input{
+  border:3px solid var(--ink);box-shadow:inset 3px 3px 0 var(--hi),inset -3px -3px 0 var(--lo)}
+.panel{background:var(--paper);box-shadow:inset 4px 4px 0 var(--hi),inset -4px -4px 0 var(--lo),6px 6px 0 rgba(0,0,0,.35)}
+.title-card h1{font-weight:700;letter-spacing:1px;text-shadow:3px 3px 0 #b8b8b8}
+.title-card h1 span{color:var(--gold);-webkit-text-stroke:0;text-shadow:3px 3px 0 #6b4a12,6px 6px 0 rgba(0,0,0,.3)}
+h1,h2,h3{font-weight:700}
+.kicker{color:#2e7d32}
+.btn{background:var(--grass);color:#fff;font-weight:700;text-shadow:2px 2px 0 rgba(0,0,0,.45)}
+body.l2 .btn,body.l3 .btn{background:#5aa83a}
+.btn:hover{transform:none;filter:brightness(1.1);box-shadow:inset 3px 3px 0 var(--hi),inset -3px -3px 0 var(--lo),0 0 0 3px #fff}
+.btn:active{transform:translateY(2px);box-shadow:inset -3px -3px 0 var(--hi),inset 3px 3px 0 var(--lo)}
+.btn.alt{background:#a8a8a8;color:#fff}
+.land.l1{background:#9bd27a}.land.l2{background:#f0d48e}.land.l3{background:#b7a6e0}
+.rules .ic{border-width:2px;font-family:var(--display);font-weight:700}
+.hud .cell{background:var(--paper)}
+.hud .lvl{background:#3b3b3b}
+.hud .val{font-weight:700}
+.iconbtn{background:var(--paper)}
+.track{background:
+  repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 8px,transparent 8px 24px),#b9b9b9}
+.track .path{border-bottom:4px dashed #6b6b6b}
+.track .fill{background:repeating-linear-gradient(90deg,#4caf50 0 8px,#5cc062 8px 16px)}
+.col-h{background:#3b3b3b;font-weight:700}
+.card{box-shadow:inset 3px 3px 0 var(--hi),inset -3px -3px 0 var(--lo),0 4px 0 rgba(0,0,0,.4)}
+.card.idiom{font-weight:700;color:#2b1a08;background:
+  repeating-linear-gradient(180deg,transparent 0 13px,rgba(70,40,10,.18) 13px 15px),#d1a463}
+.card.meaning{background:#e8e8e8}
+.card.idiom::before{background:#fafafa;border-width:2px;clip-path:polygon(25% 0,75% 0,100% 25%,100% 80%,80% 100%,20% 100%,0 80%,0 25%)}
+.card.idiom.golden::before{background:var(--gold);box-shadow:none;animation:glint .7s steps(2) infinite}
+.card:hover:not(.done){transform:translateY(-2px);box-shadow:inset 3px 3px 0 var(--hi),inset -3px -3px 0 var(--lo),0 6px 0 rgba(0,0,0,.4)}
+.card.sel{background:var(--gold);color:#2b1a08;transform:translateY(-3px);box-shadow:inset 3px 3px 0 var(--hi),inset -3px -3px 0 var(--lo),0 0 0 3px #fff,0 7px 0 rgba(0,0,0,.4)}
+.card.bad{background:var(--berry)}
+.card.done{background:var(--pond);color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.4)}
+.card.hint{background:#fff3b0}
+@keyframes glint{50%{filter:brightness(1.35)}}
+@keyframes hintglow{50%{box-shadow:0 0 0 5px var(--gold)}}
+.float{font-weight:700;-webkit-text-stroke:0;text-shadow:2px 2px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink)}
+.feather{width:10px;height:10px;border:2px solid var(--ink);background:#7ee06a}
+.badge{background:#3b3b3b;font-weight:700}
+.live-dot::before{animation:pulse .5s steps(2) infinite alternate}
+.lb li{background:#ececec}
+.lb li.me{background:#fff3b0;box-shadow:inset 3px 3px 0 var(--hi),inset -3px -3px 0 var(--lo),0 0 0 2px var(--beak)}
+.lb .rk,.lb .sc{font-weight:700}
+.lb .st{border-width:2px}
+.lb .st.fin{background:var(--pond)}
+.teacher{background:var(--paper-2);border-style:solid}
+.meter i{background:repeating-linear-gradient(90deg,#4caf50 0 8px,#5cc062 8px 16px)}
+.join input{background:#1e1e1e;color:#f5f5f5;font-family:var(--display);box-shadow:inset 3px 3px 0 rgba(0,0,0,.5)}
+.join input::placeholder{color:#8a8a8a}
+.join input:focus-visible{background:#111}
+.review th{background:#3b3b3b}
+.review td{border-top:2px solid #c9c9c9}
+.pod .block{font-weight:700;color:#fff;text-shadow:3px 3px 0 rgba(0,0,0,.45);box-shadow:inset 4px 4px 0 var(--hi),inset -4px -4px 0 var(--lo)}
+.pod.p1 .block{background:repeating-linear-gradient(45deg,transparent 0 10px,rgba(255,255,255,.18) 10px 14px),#e7b622}
+.pod.p2 .block{background:repeating-linear-gradient(45deg,transparent 0 10px,rgba(255,255,255,.25) 10px 14px),#bfc3c9}
+.pod.p3 .block{background:repeating-linear-gradient(45deg,transparent 0 10px,rgba(255,255,255,.18) 10px 14px),#c26a35}
+.goose{image-rendering:pixelated}
+.goose.flap{animation:hop .16s 6 alternate}
+@keyframes hop{to{transform:translateY(-8px)}}
+.stars svg,.feathers svg{image-rendering:pixelated}
+@media (max-width:900px){
+  .play-layout{grid-template-columns:1fr}
+  .play-aside{position:static}
+  .play-aside .lb{max-height:none}
+  .lobby{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .hud{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hud .lvl{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:10px}
+  .iconbtn{width:auto;min-height:44px}
+  .lands{grid-template-columns:1fr}
+  .rules{grid-template-columns:1fr}
+  .title-card{grid-template-columns:1fr}
+  .hero-goose{justify-self:center;order:-1}
+}
+@media (max-width:520px){
+  .board{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px}
+  .card{padding:10px 10px;min-height:52px}
+  .card.idiom{padding-left:36px}
+  .card.idiom::before{left:9px;width:16px;height:21px;margin-top:-10px}
+  .speech{font-size:.8rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="goose" viewBox="0 0 120 100">
+      <g class="g">
+        <path d="M80 54 Q74 34 82 18" stroke="#1d2340" stroke-width="17" fill="none" stroke-linecap="round"/>
+        <path d="M22 60 L8 48 L26 70Z" fill="#fff" stroke="#1d2340" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M26 68 Q18 48 42 46 L76 46 Q98 49 94 66 Q90 82 60 83 Q34 83 26 68Z" fill="#fff" stroke="#1d2340" stroke-width="3"/>
+        <path d="M80 54 Q74 34 82 18" stroke="#fff" stroke-width="11" fill="none" stroke-linecap="round"/>
+        <path d="M74 44 Q82 50 90 44 L88 52 Q81 56 74 51Z" fill="#16a097" stroke="#1d2340" stroke-width="2"/>
+        <circle cx="85" cy="16" r="10.5" fill="#fff" stroke="#1d2340" stroke-width="3"/>
+        <path d="M93 12 L110 17 L93 22Z" fill="#ff8a1f" stroke="#1d2340" stroke-width="2.5" stroke-linejoin="round"/>
+        <circle cx="88" cy="13" r="2.4" fill="#1d2340"/>
+        <path class="wing" d="M42 58 Q58 44 80 56 Q68 72 46 68Z" fill="#e8edf6" stroke="#1d2340" stroke-width="2.5"/>
+        <path d="M52 82 L50 94 M68 82 L70 94" stroke="#ff8a1f" stroke-width="4" stroke-linecap="round"/>
+        <path d="M44 95 L56 95 M64 95 L76 95" stroke="#ff8a1f" stroke-width="4" stroke-linecap="round"/>
+      </g>
+    </symbol>
+    <symbol id="feather" viewBox="0 0 24 24"><path d="M19 3C11 3 5 9 5 17l-2 4 2-1c8 0 14-6 14-14V3z" fill="#fff" stroke="#1d2340" stroke-width="2" stroke-linejoin="round"/><path d="M5 19L15 9" stroke="#1d2340" stroke-width="1.6"/></symbol>
+    <symbol id="star" viewBox="0 0 24 24"><path d="M12 2l3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.8 5.7 21.4l1.5-7.1L1.8 9.4 9 8.6z" fill="#ffc83d" stroke="#1d2340" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="pond" viewBox="0 0 44 44"><ellipse cx="22" cy="32" rx="20" ry="9" fill="#16a097" stroke="#1d2340" stroke-width="2.5"/><ellipse cx="22" cy="12" rx="8" ry="10" fill="#ffc83d" stroke="#1d2340" stroke-width="2.5"/><path d="M17 8l3 2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap" id="app"></div>
+<div class="fx" id="fx"></div>
+
+<script>
+(() => {
+/* ================= DATA ================= */
+const LEVELS = [
+  { name:"Meadow Marsh", tag:"Level 1 · Warm-up", cefr:"B1", time:100, decoys:["to read very slowly","to tie something tightly"],
+    blurb:"Gus waddles out of the meadow. Five idioms block the path, and two fake meanings are hiding in the grass.",
+    rule:"5 idioms · 7 meanings · 100 seconds",
+    pairs:[
+      ["Hit the books","to study hard","I need to hit the books before my IELTS test."],
+      ["Call it a day","to stop working on something","We've done enough. Let's call it a day."],
+      ["Learn the ropes","to understand how something works","It took me a week to learn the ropes at my new school."],
+      ["Go the extra mile","to make a special effort","Our coach always goes the extra mile for the team."],
+      ["Easier said than done","not as simple as it seems","Waking up at 5 a.m. is easier said than done."]
+    ]},
+  { name:"Thunder Farm", tag:"Level 2 · Getting tricky", cefr:"B1+", time:80, decoys:["to feel very nervous","to change your mind often","to waste time"],
+    blurb:"A storm rolls over the farm. Three fake meanings are hiding in the hay.",
+    rule:"5 idioms · 8 meanings · 80 seconds",
+    pairs:[
+      ["On the same page","to agree or share understanding","Before we start the project, let's make sure we're on the same page."],
+      ["Burn the midnight oil","to study or work late into the night","I burned the midnight oil to finish my science report."],
+      ["Out of the blue","unexpectedly","My old friend called me out of the blue last week."],
+      ["Up in the air","undecided, uncertain","Our trip is still up in the air because of the weather."],
+      ["In full swing","at the peak of activity","By 8 p.m. the party was in full swing."]
+    ]},
+  { name:"Moonlit Sky", tag:"Level 3 · Boss flight", cefr:"B2", time:95, decoys:["to save money carefully","to argue about small things","to cook a meal for friends","to be very angry"],
+    blurb:"Gus takes off for the Golden Pond. Three goose idioms join the flock, and four fake meanings fly with them.",
+    rule:"8 idioms · 12 meanings · 95 seconds",
+    pairs:[
+      ["Once in a blue moon","rarely","I eat fast food once in a blue moon."],
+      ["Rule of thumb","a general guideline","As a rule of thumb, speak for about two minutes in Part 2."],
+      ["Blow off steam","to relax by doing something active","After exams, I play football to blow off steam."],
+      ["Have a whale of a time","to enjoy yourself a lot","We had a whale of a time at the science fair."],
+      ["Let your hair down","to relax and enjoy yourself","On Friday night, students can finally let their hair down."],
+      ["A wild goose chase","a search that is hopeless or pointless","Looking for my lost key in the dark was a wild goose chase."],
+      ["Cook someone's goose","to ruin someone's chances","Being late for the interview really cooked his goose."],
+      ["Kill the goose that lays the golden eggs","to destroy something that gives you good results","Raising prices too much would kill the goose that lays the golden eggs."]
+    ]}
+];
+const GOOSE_IDIOMS = new Set(["A wild goose chase","Cook someone's goose","Kill the goose that lays the golden eggs"]);
+
+/* ================= STORAGE ================= */
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+
+/* ================= AUDIO (Web Audio, all synthesized) ================= */
+const Sound = (() => {
+  let ctx=null, master, music, sfx, muted=false, timer=null, step=0, nextTime=0, bpm=140, playing=false, pattern=0;
+  const N = n => 440*Math.pow(2,(n-69)/12);
+  // three energetic loops (MIDI notes, 0 = rest), 16 sixteenth-steps
+  const PATTERNS = [
+    { bass:[48,0,48,0,55,0,48,0,53,0,53,0,55,0,55,0], lead:[72,76,79,76,72,76,79,84,77,81,84,81,79,83,86,83] },
+    { bass:[45,0,45,52,45,0,43,0,41,0,41,48,43,0,43,50], lead:[69,72,76,72,81,76,72,76,77,72,77,81,79,74,79,83] },
+    { bass:[50,50,0,50,57,0,50,0,46,46,0,46,48,0,48,55], lead:[74,77,81,86,81,77,74,81,82,77,74,77,79,83,86,91] }
+  ];
+  function init(){
+    if(ctx) return;
+    const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    ctx = new AC();
+    master = ctx.createGain(); master.gain.value = muted?0:0.9; master.connect(ctx.destination);
+    const comp = ctx.createDynamicsCompressor(); comp.connect(master);
+    music = ctx.createGain(); music.gain.value=0.16; music.connect(comp);
+    sfx = ctx.createGain(); sfx.gain.value=0.55; sfx.connect(comp);
+  }
+  function tone(freq,t,dur,type="square",vol=0.3,dest=sfx,slideTo=null){
+    if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t+dur+0.02);
+  }
+  function noise(t,dur,vol=0.2,hp=6000){
+    if(!ctx) return;
+    const b=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate), d=b.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const s=ctx.createBufferSource(); s.buffer=b;
+    const f=ctx.createBiquadFilter(); f.type="highpass"; f.frequency.value=hp;
+    const g=ctx.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(f); f.connect(g); g.connect(music); s.start(t);
+  }
+  function kick(t){
+    if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(40,t+0.12);
+    g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);
+    o.connect(g); g.connect(music); o.start(t); o.stop(t+0.16);
+  }
+  function schedule(){
+    const spb = 60/bpm/4;
+    while(nextTime < ctx.currentTime+0.12){
+      const p = PATTERNS[pattern], s = step%16, bar = Math.floor(step/16)%4;
+      if(s%4===0) kick(nextTime);
+      if(s%2===1) noise(nextTime,0.04,0.12);
+      if(s===4||s===12) noise(nextTime,0.12,0.25,1800);
+      if(p.bass[s]) tone(N(p.bass[s]-12+(bar===3?2:0)),nextTime,spb*1.6,"sawtooth",0.35,music);
+      if(p.lead[s] && (bar<3 || s%2===0)) tone(N(p.lead[s]),nextTime,spb*0.9,"square",0.16,music);
+      nextTime += spb; step++;
+    }
+  }
+  return {
+    get muted(){return muted},
+    unlock(){ init(); if(ctx && ctx.state==="suspended") ctx.resume(); },
+    startMusic(level){ init(); if(!ctx) return; pattern=level; bpm=[138,150,162][level]; if(playing) return; playing=true; step=0; nextTime=ctx.currentTime+0.05; timer=setInterval(schedule,25); },
+    stopMusic(){ playing=false; clearInterval(timer); timer=null; },
+    toggleMute(){ muted=!muted; if(master) master.gain.setTargetAtTime(muted?0:0.9,ctx.currentTime,0.02); return muted; },
+    select(){ if(!ctx) return; const t=ctx.currentTime; tone(660,t,0.07,"square",0.25,sfx,1100); },
+    match(streak){ if(!ctx) return; const t=ctx.currentTime, base=72+Math.min(streak,6);
+      [0,4,7,12].forEach((n,i)=>tone(N(base+n),t+i*0.055,0.14,"triangle",0.4)); tone(N(base+19),t+0.22,0.25,"square",0.15); },
+    combo(){ if(!ctx) return; const t=ctx.currentTime; for(let i=0;i<6;i++) tone(N(84+i*2),t+i*0.03,0.08,"square",0.18); },
+    golden(){ if(!ctx) return; const t=ctx.currentTime; [84,88,91,96,100].forEach((n,i)=>tone(N(n),t+0.25+i*0.06,0.3,"triangle",0.3)); },
+    honk(){ if(!ctx) return; const t=ctx.currentTime;
+      [0,0.17].forEach(d=>{ const o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+        o.type="sawtooth"; o.frequency.setValueAtTime(330,t+d); o.frequency.exponentialRampToValueAtTime(190,t+d+0.14);
+        f.type="bandpass"; f.frequency.value=900; f.Q.value=3;
+        g.gain.setValueAtTime(0.0001,t+d); g.gain.exponentialRampToValueAtTime(0.7,t+d+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.15);
+        o.connect(f); f.connect(g); g.connect(sfx); o.start(t+d); o.stop(t+d+0.17); }); },
+    tick(){ if(!ctx) return; tone(1500,ctx.currentTime,0.04,"square",0.18); },
+    hint(){ if(!ctx) return; const t=ctx.currentTime; tone(520,t,0.12,"triangle",0.3,sfx,1040); tone(780,t+0.1,0.18,"triangle",0.25,sfx,1560); },
+    win(){ if(!ctx) return; const t=ctx.currentTime; [72,76,79,84,79,84,88,91].forEach((n,i)=>tone(N(n),t+i*0.11,i===7?0.6:0.16,"square",0.3)); },
+    lose(){ if(!ctx) return; const t=ctx.currentTime; [67,63,60,55].forEach((n,i)=>tone(N(n),t+i*0.18,0.25,"sawtooth",0.25)); }
+  };
+})();
+
+
+/* ================= PIXEL SPRITES ================= */
+(function paintSprites(){
+  const PAL={K:"#1e1e1e",W:"#ffffff",O:"#f08a1c",G:"#c9cfd8",T:"#2aa198",Y:"#f5c542",B:"#3a8de0",b:"#6fb4ff"};
+  const SPR={
+    goose:{px:5,map:[
+      "...............KKKK...","..............KWWWWK..","..............KWWKWKOO","..............KWWWWKOO",
+      "...............KWWK...","...............KWWK...","...............KWWK...","..............KTTTTK..",
+      "..KK.....KKKKKKWWWWK..","..KWK..KKWWWWWWWWWWK..","..KWWKKWWGGGGGGWWWWK..","...KWWWWGGGGGGGGWWWK..",
+      "...KWWWWWGGGGGGWWWWK..","....KWWWWWWWWWWWWWK...",".....KKKKKKKKKKKKKK...","........OO...OO.......",
+      ".......OOO..OOO......."]},
+    feather:{px:1,map:[".......KK.","......KWWK",".....KWWWK","....KWWWK.","...KWWWK..","..KWWWK...","..KWWK....",".KKKK.....",".K........","K........."]},
+    star:{px:1,map:["....K....","...KYK...","KKKYYYKKK","KYYYYYYYK",".KYYYYYK.","..KYYYK..",".KYYKYYK.",".KYK.KYK.",".KK...KK."]},
+    pond:{px:1,map:["....KKKK....","...KYYYYK...","..KYWYYYYK..","..KYYYYYYK..","..KYYYYYYK..","...KYYYYK...","....KKKK....","KKKKKKKKKKKK","KBBbBBBBbBBK","KBBBBbBBBBBK","KbBBBBBBbBBK","KKKKKKKKKKKK"]}
+  };
+  for(const [id,{px,map}] of Object.entries(SPR)){
+    const sym=document.getElementById(id); if(!sym) continue;
+    let out="";
+    map.forEach((row,y)=>{ let x=0; while(x<row.length){ const c=row[x]; let n=1; while(row[x+n]===c) n++;
+      if(PAL[c]) out+=`<rect x="${x*px}" y="${y*px}" width="${n*px}" height="${px}" fill="${PAL[c]}"/>`; x+=n; } });
+    sym.setAttribute("viewBox",`0 0 ${map[0].length*px} ${map.length*px}`);
+    sym.innerHTML=out;
+  }
+})();
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const app = $("#app"), fx = $("#fx");
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const esc = s => s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const gooseSVG = (cls="") => `<svg class="goose ${cls}" viewBox="0 0 110 85" shape-rendering="crispEdges" aria-hidden="true"><use href="#goose"/></svg>`;
+const featherSVG = lost => `<svg class="${lost?'lost':''}" viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><use href="#feather"/></svg>`;
+const starSVG = on => `<svg class="${on?'':'off'}" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><use href="#star"/></svg>`;
+
+function floatText(x,y,text,neg=false){
+  const el=document.createElement("div"); el.className="float"+(neg?" neg":""); el.textContent=text;
+  el.style.left=(x-30)+"px"; el.style.top=(y-20)+"px"; fx.appendChild(el); setTimeout(()=>el.remove(),1000);
+}
+function burst(x,y,n=10){
+  for(let i=0;i<n;i++){ const f=document.createElement("div"); f.className="feather";
+    f.style.left=x+"px"; f.style.top=y+"px"; f.style.setProperty("--dx",(Math.random()*160-80)+"px"); f.style.setProperty("--rot",(Math.random()*540-270)+"deg");
+    if(Math.random()<.35) f.style.background="#ffc83d";
+    fx.appendChild(f); setTimeout(()=>f.remove(),1100); }
+}
+function center(el){ const r=el.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; }
+// Web Audio needs a user gesture; the first click anywhere unlocks it
+document.addEventListener("pointerdown",()=>Sound.unlock(),{once:true});
+
+/* ================= LIVE CLASS BOARD (Netlify Function + Blobs) ================= */
+const Live = (() => {
+  let ready=false, failed=false, isTeacher=false, round="r1", status="open", players=[], last="";
+  const subs=new Set(); const emit=()=>subs.forEach(f=>{ try{f();}catch(e){console.error(e);} });
+  let myId = store.get("goose-pid");
+  if(!myId){ myId="p"+Math.random().toString(36).slice(2,10)+Date.now().toString(36); store.set("goose-pid",myId); }
+  let pin=null; try{ pin=sessionStorage.getItem("goose-pin"); }catch(e){}
+  let pending=null, inflight=false, timer=null, pollT=null, fails=0;
+
+  async function poll(){
+    try{
+      const r=await fetch("/api/state",{cache:"no-store"});
+      if(!r.ok) throw new Error(r.status);
+      const d=await r.json(); fails=0; const wasFailed=failed; failed=false; ready=true;
+      const sig=JSON.stringify(d);
+      if(sig!==last || wasFailed){ last=sig; round=String(d.round||"r1"); status=d.status==="finished"?"finished":"open"; players=Array.isArray(d.players)?d.players:[]; emit(); }
+    }catch(e){ fails++; if(!ready || fails>2){ if(!failed){ failed=true; emit(); } } }
+  }
+  function loop(){ clearTimeout(pollT); pollT=setTimeout(async()=>{ await poll(); loop(); }, document.hidden?8000:2500); }
+  async function teacherCall(action,p){
+    try{
+      const r=await fetch("/api/teacher",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({pin:p,action})});
+      const d=await r.json().catch(()=>({}));
+      return r.ok ? {ok:true} : {ok:false,error:d.error||"That didn't work."};
+    }catch(e){ return {ok:false,error:"Can't reach the class server."}; }
+  }
+  async function init(){
+    await poll(); loop();
+    if(pin){ const r=await teacherCall("check",pin); isTeacher=r.ok; if(!r.ok){ pin=null; try{sessionStorage.removeItem("goose-pin");}catch(e){} } emit(); }
+  }
+  async function flush(){
+    if(inflight || !pending) return;
+    inflight=true; const data=pending; pending=null;
+    try{ await fetch("/api/score",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...data,id:myId})}); }catch(e){ console.warn("score sync",e); }
+    inflight=false; if(pending) schedule(); else poll();
+  }
+  function schedule(){ clearTimeout(timer); timer=setTimeout(flush,350); }
+  return {
+    init, myId,
+    get ready(){return ready}, get failed(){return failed}, get teacher(){return isTeacher},
+    get round(){return round}, get status(){return status}, get players(){return players},
+    on(f){ subs.add(f); },
+    save(rec){ pending={...rec}; schedule(); },
+    async login(p){ const r=await teacherCall("check",p); if(r.ok){ pin=p; isTeacher=true; try{sessionStorage.setItem("goose-pin",p);}catch(e){} emit(); } return r; },
+    logout(){ pin=null; isTeacher=false; try{sessionStorage.removeItem("goose-pin");}catch(e){} emit(); },
+    async setGame(obj){ const r=await teacherCall(obj.status==="finished"?"end":"new",pin); if(!r.ok) alertBar(r.error); await poll(); }
+  };
+})();
+
+function ranked(list){
+  return [...list].sort((a,b)=> (b.score||0)-(a.score||0) || ((a.status==="finished")===(b.status==="finished") ? (a.finishedAt||9e15)-(b.finishedAt||9e15) : (a.status==="finished"?-1:1)));
+}
+function statusLabel(p){ return p.status==="finished" ? "Finished" : "Level "+(p.level||1); }
+function lbHTML(limit){
+  if(!Live.ready) return `<li class="empty">${Live.failed ? "Can't reach the class scoreboard right now. You can still play, and your score will appear when the connection comes back." : "Connecting to the class board…"}</li>`;
+  const list = ranked(Live.players);
+  if(!list.length) return `<li class="empty">No players yet. Type your name and start to be the first goose on the board!</li>`;
+  const shown = limit ? list.slice(0,limit) : list;
+  const meIdx = list.findIndex(p=>p.id===Live.myId);
+  let html = shown.map((p,i)=>row(p,i)).join("");
+  if(limit && meIdx>=limit) html += row(list[meIdx],meIdx);
+  return html;
+  function row(p,i){ return `<li class="${p.id===Live.myId?'me':''}"><span class="rk">${i+1}</span><span class="nm">${esc(String(p.name||"Goose"))}${p.id===Live.myId?' (you)':''}</span><span class="st ${p.status==='finished'?'fin':''}">${statusLabel(p)}</span><span class="sc">${p.score||0}</span></li>`; }
+}
+function finishedCount(){ return Live.players.filter(p=>p.status==="finished").length; }
+function allFinished(){ return Live.players.length>0 && finishedCount()===Live.players.length; }
+
+function teacherHTML(){
+  if(!Live.ready) return "";
+  if(!Live.teacher){
+    if(!S || !["start","board"].includes(S.screen)) return "";
+    return `<details class="more teacher-login"><summary style="font-size:.95rem">Teacher login</summary>
+      <div class="row"><input id="pinInput" type="password" autocomplete="off" placeholder="Teacher PIN" aria-label="Teacher PIN" style="font:inherit;padding:8px 10px;border:3px solid var(--ink);width:10em">
+      <button type="button" class="btn alt small" data-t="login">Log in</button></div>
+      <p class="err" id="pinErr" role="alert"></p></details>`;
+  }
+  return `<div class="teacher">
+    <b>Teacher controls</b>
+    <span class="lb-note">${Live.status==="finished"?"Round ended — the ranking is showing on every screen.":"Round is open. The ranking appears automatically when every player finishes."}</span>
+    <div class="row">
+      <button type="button" class="btn small" data-t="end" ${Live.status==="finished"?"disabled":""}>Show final ranking now</button>
+      <button type="button" class="btn alt small" data-t="new">Start a new round</button>
+      <button type="button" class="btn alt small" data-t="logout">Log out</button>
+    </div>
+    <span class="lb-note" id="confirmNew" hidden>A new round clears the board for everyone. <button type="button" class="btn alt small" data-t="newyes">Yes, clear it</button></span>
+  </div>`;
+}
+function bindTeacher(){
+  const slot=$("#teacherSlot"); if(slot) slot.dataset.sig=`${Live.ready}|${Live.teacher}|${Live.status}|${S&&S.screen}`;
+  const doLogin=async()=>{ const v=($("#pinInput")||{}).value||""; if(!v.trim()) return; const r=await Live.login(v.trim()); if(!r.ok){ const e=$("#pinErr"); if(e) e.textContent=r.error; } };
+  const pi=$("#pinInput"); if(pi) pi.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } };
+  app.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
+    const t=b.dataset.t;
+    if(t==="login") doLogin();
+    if(t==="logout") Live.logout();
+    if(t==="end") Live.setGame({status:"finished"});
+    if(t==="new"){ const c=$("#confirmNew"); if(c) c.hidden=false; }
+    if(t==="newyes") Live.setGame({status:"open"});
+  });
+}
+function alertBar(msg){ const el=document.createElement("div"); el.className="float neg"; el.style.cssText="left:50%;top:40%;transform:translateX(-50%);font-size:1rem"; el.textContent=msg; fx.appendChild(el); setTimeout(()=>el.remove(),1600); }
+
+/* refresh whatever board is on screen; decide when the ranking appears */
+let lastRoundSeen=null;
+Live.on(()=>{
+  document.querySelectorAll("[data-lb]").forEach(el=>{ el.innerHTML=lbHTML(el.dataset.lb==="mini"?8:0); });
+  const tp=$("#teacherSlot"); if(tp && tp.dataset.sig!==`${Live.ready}|${Live.teacher}|${Live.status}|${S&&S.screen}`){ tp.innerHTML=teacherHTML(); bindTeacher(); }
+  const w=$("#waitInfo"); if(w) w.innerHTML=waitHTML();
+  const cnt=$("#lbCount"); if(cnt) cnt.textContent=Live.ready?`${Live.players.length} players · ${finishedCount()} finished`:"";
+  if(!S) return;
+  if(lastRoundSeen && Live.round!==lastRoundSeen && (S.screen==="ranking"||S.screen==="wait")){ lastRoundSeen=Live.round; showStart(); return; }
+  lastRoundSeen=Live.round;
+  const roundOver = Live.status==="finished" || ((S.screen==="wait"||S.screen==="board") && allFinished());
+  if(roundOver && ["play","wait","board","intro"].includes(S.screen)) showRanking();
+});
+
+/* ================= STATE ================= */
+let S = { screen:"start" };
+function newRun(name){ S = { screen:"intro", name, round:Live.round, level:0, total:0, stars:[0,0,0], mistakes:0 }; }
+function bestScore(){ return parseInt(store.get("goose-best")||"0",10)||0; }
+function syncMe(extra={}){
+  if(!S || !S.name) return;
+  Live.save({ name:S.name, round:S.round, score:S.total, level:S.level+1, stars:S.stars, mistakes:S.mistakes,
+              status:"playing", ...extra });
+}
+
+/* ================= START SCREEN ================= */
+function showStart(){
+  if(location.hash==="#board"){ showBoard(); return; }
+  if(S) { clearInterval(S.clock); S.screen="start"; }
+  document.body.className="l1";
+  Sound.stopMusic(); closeOverlay();
+  const best = bestScore(), saved = store.get("goose-name")||"";
+  app.innerHTML = `
+  <section class="panel title-card">
+    <div>
+      <div class="kicker">Idiom Quest · B1–B2</div>
+      <h1>The Adventure of <span>The Goose</span></h1>
+      <p class="story">Gus the Goose has lost his way home to the <b>Golden Pond</b>. Every gate on the road is locked with an English idiom. Match each idiom to its meaning, build combos, grab the golden eggs and race your classmates to the top of the board.</p>
+    </div>
+    <div class="hero-goose">${gooseSVG()}</div>
+  </section>
+  <section class="lobby">
+    <form class="panel join" id="joinForm" novalidate>
+      <label for="nameInput">Enter your name to join the flock</label>
+      <input id="nameInput" name="nameInput" maxlength="20" autocomplete="nickname" placeholder="e.g. Patnah" value="${esc(saved)}">
+      <p class="err" id="nameErr" role="alert"></p>
+      <div class="row">
+        <button class="btn" type="submit">Start the adventure ▸</button>
+        <span class="best">${best?`Your best: <b>${best}</b>`:"Turn the sound on!"}</span>
+      </div>
+      <div id="teacherSlot">${teacherHTML()}</div>
+    </form>
+    <section class="panel lb-panel" aria-label="Live class scoreboard">
+      <div class="lb-head"><h3>Class scoreboard</h3><span class="live-dot">Live</span></div>
+      <span class="lb-note" id="lbCount"></span>
+      <ol class="lb" data-lb="full">${lbHTML(0)}</ol>
+      <a class="btn alt small" href="#board" style="text-decoration:none;align-self:flex-start">Open full-screen board ▸</a>
+    </section>
+  </section>
+  <section class="lands" aria-label="The three lands">
+    ${LEVELS.map((L,i)=>`<div class="land l${i+1}"><span class="tag">${L.tag} · ${L.cefr}</span><b>${L.name}</b><small>${L.rule}</small></div>`).join("")}
+  </section>
+  <section class="panel">
+    <h3 style="font-size:1.3rem;margin-bottom:12px">How to play</h3>
+    <ul class="rules">
+      <li><span class="ic" style="background:var(--gold)">1</span><span>Tap an <b>idiom egg</b>, then tap its <b>meaning</b>. There are <b>more meanings than idioms</b>, so watch out for fakes.</span></li>
+      <li><span class="ic" style="background:#c7f0ea">+</span><span><b>100 points</b> per match. 3 in a row = <b>×2</b>, 5 in a row = <b>×3</b>.</span></li>
+      <li><span class="ic" style="background:var(--gold)">★</span><span>One <b>golden egg</b> per level is worth double.</span></li>
+      <li><span class="ic" style="background:#ffd0d7">!</span><span>A wrong match costs <b>30 points</b> and a <b>feather</b>, and the wind <b>mixes up all the cards</b>. Lose 3 feathers and you retry the level.</span></li>
+      <li><span class="ic" style="background:#fff">?</span><span><b>Honk for help</b> once per level (−50) to light up the right meaning.</span></li>
+      <li><span class="ic" style="background:#fff">🏆</span><span>Your score updates on the class board live. The final ranking appears when everyone finishes.</span></li>
+    </ul>
+  </section>`;
+  const cnt=$("#lbCount"); if(cnt) cnt.textContent=Live.ready?`${Live.players.length} players · ${finishedCount()} finished`:"";
+  bindTeacher();
+  $("#joinForm").onsubmit = e => {
+    e.preventDefault();
+    const name = $("#nameInput").value.replace(/\s+/g," ").trim();
+    if(name.length<2){ $("#nameErr").textContent="Type your name (at least 2 letters) to start."; $("#nameInput").focus(); return; }
+    store.set("goose-name",name);
+    Sound.unlock(); newRun(name); syncMe(); showIntro();
+  };
+}
+
+/* ================= FULL-SCREEN BOARD (projector) ================= */
+function showBoard(){
+  if(S) clearInterval(S.clock);
+  S = S || {}; S.screen="board";
+  Sound.stopMusic(); closeOverlay();
+  document.body.className="l2";
+  app.innerHTML = `
+  <section class="panel lb-panel">
+    <div class="lb-head"><h1 style="font-size:clamp(1.8rem,5vw,2.8rem)">Class scoreboard</h1><span class="live-dot">Live</span></div>
+    <span class="lb-note" id="lbCount">${Live.ready?`${Live.players.length} players · ${finishedCount()} finished`:""}</span>
+    <div class="wait" id="waitInfo">${waitHTML()}</div>
+    <ol class="lb" data-lb="full" style="max-height:none;font-size:1.15rem">${lbHTML(0)}</ol>
+    <div id="teacherSlot">${teacherHTML()}</div>
+    <a class="btn alt small" href="#" style="text-decoration:none;align-self:flex-start">◂ Back to the game</a>
+  </section>`;
+  bindTeacher();
+  if(Live.status==="finished" || allFinished()) showRanking();
+}
+function waitHTML(){
+  if(!Live.ready) return "";
+  const n=Live.players.length, f=finishedCount();
+  return `<span class="lb-note"><b>${f} of ${n}</b> geese have reached the Golden Pond. The ranking appears when everyone finishes.</span><div class="meter"><i style="width:${n?f/n*100:0}%"></i></div>`;
+}
+window.addEventListener("hashchange",()=>{ if(location.hash==="#board") showBoard(); else if(!S||S.screen==="board"||S.screen==="ranking") { S={screen:"start"}; showStart(); } });
+
+/* ================= LEVEL INTRO ================= */
+function showIntro(){
+  const L = LEVELS[S.level];
+  S.screen="intro";
+  document.body.className = "l"+(S.level+1);
+  renderPlay(true);
+  overlay(`
+    <span class="badge">${L.tag}</span>
+    <h2>${L.name}</h2>
+    <p class="sub">${L.blurb}</p>
+    <p class="sub"><b>${L.rule}</b> · every miss reshuffles the cards</p>
+    <div class="row"><button class="btn" id="goBtn">Let's waddle! ▸</button></div>
+  `, () => { $("#goBtn").onclick = () => { closeOverlay(); startLevel(); }; });
+}
+
+/* ================= PLAY ================= */
+function startLevel(){
+  const L = LEVELS[S.level];
+  S.screen="play";
+  S.lv = { score:0, streak:0, bestStreak:0, feathers:3, time:L.time, matched:new Set(), mistakes:0, hintUsed:false,
+           selI:null, selM:null, golden: Math.floor(Math.random()*L.pairs.length), over:false,
+           meaningsOrder: shuffle([...L.pairs.map((p,i)=>({id:i,text:p[1]})), ...L.decoys.map((d,j)=>({id:"d"+j,text:d}))]),
+           idiomOrder: shuffle(L.pairs.map((p,i)=>i)) };
+  renderPlay(false);
+  syncMe();
+  Sound.startMusic(S.level);
+  clearInterval(S.clock);
+  S.clock = setInterval(()=>{
+    if(S.lv.over) return;
+    S.lv.time--;
+    if(S.lv.time<=10 && S.lv.time>0) Sound.tick();
+    updateHUD();
+    if(S.lv.time<=0) endLevel(false,"time");
+  },1000);
+}
+
+function renderPlay(preview){
+  const L = LEVELS[S.level];
+  const lv = preview ? null : S.lv;
+  const idiomOrder = lv ? lv.idiomOrder : L.pairs.map((_,i)=>i);
+  const meanings = lv ? lv.meaningsOrder : [...L.pairs.map((p,i)=>({id:i,text:p[1]})), ...L.decoys.map((d,j)=>({id:"d"+j,text:d}))];
+  app.innerHTML = `
+  <div class="hud" role="status" aria-live="polite">
+    <div class="cell lvl"><span class="lbl">Level ${S.level+1}/3 · ${esc(S.name)}</span><span class="val">${L.name}</span></div>
+    <div class="cell"><span class="lbl">Score</span><span class="val" id="hScore">${S.total}</span></div>
+    <div class="cell timer" id="hTimeCell"><span class="lbl">Time</span><span class="val" id="hTime">${L.time}s</span></div>
+    <div class="cell combo" id="hComboCell"><span class="lbl">Combo</span><span class="val" id="hCombo">×1</span></div>
+    <div class="cell"><span class="lbl">Feathers</span><span class="val feathers" id="hFeathers">${featherSVG()+featherSVG()+featherSVG()}</span></div>
+    <button class="iconbtn" id="muteBtn" aria-label="Sound on or off" title="Sound">${Sound.muted?"🔇":"🔊"}</button>
+  </div>
+  <div class="play-layout">
+    <div class="play-main">
+      <div class="track" aria-hidden="true">
+        <div class="fill" id="tFill"></div>
+        <div class="path"></div>
+        <svg class="goal" viewBox="0 0 12 12" shape-rendering="crispEdges"><use href="#pond"/></svg>
+        <div class="walker" id="walker">${gooseSVG()}</div>
+        <div class="speech" id="speech">Honk! Help me reach the Golden Pond!</div>
+      </div>
+      <div class="board-head">
+        <h2>${L.name}</h2>
+        <p>${L.rule}</p>
+      </div>
+      <div class="board">
+        <div class="col" id="iCol"><span class="col-h">Idioms · ${L.pairs.length}</span>
+          ${idiomOrder.map(i=>`<button class="card idiom${lv&&i===lv.golden?' golden':''}" data-i="${i}" ${preview?'disabled':''}>${esc(L.pairs[i][0])}</button>`).join("")}
+        </div>
+        <div class="col" id="mCol"><span class="col-h">Meanings · ${meanings.length}</span>
+          ${meanings.map(m=>`<button class="card meaning" data-m="${m.id}" ${preview?'disabled':''}>${esc(m.text)}</button>`).join("")}
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn alt small" id="hintBtn" ${preview?'disabled':''}>📣 Honk for help (−50)</button>
+        <button class="btn alt small" id="quitBtn">↩ Leave game</button>
+      </div>
+    </div>
+    <aside class="panel play-aside lb-panel" aria-label="Live class scoreboard">
+      <div class="lb-head"><h3>Class board</h3><span class="live-dot">Live</span></div>
+      <ol class="lb" data-lb="mini">${lbHTML(8)}</ol>
+    </aside>
+  </div>`;
+  $("#muteBtn").onclick = () => { $("#muteBtn").textContent = Sound.toggleMute() ? "🔇" : "🔊"; };
+  $("#quitBtn").onclick = () => { clearInterval(S.clock); showStart(); };
+  if(preview) return;
+  app.querySelectorAll(".card.idiom").forEach(b=>b.onclick=()=>pick("I",+b.dataset.i,b));
+  app.querySelectorAll(".card.meaning").forEach(b=>b.onclick=()=>{ const v=b.dataset.m; pick("M", v.startsWith("d")?v:+v, b); });
+  $("#hintBtn").onclick = useHint;
+  updateHUD();
+}
+
+function pick(kind,id,el){
+  const lv=S.lv; if(lv.over || lv.mixing || el.classList.contains("done")) return;
+  Sound.select();
+  if(kind==="I"){
+    app.querySelectorAll(".card.idiom.sel").forEach(c=>c.classList.remove("sel"));
+    if(lv.selI===id){ lv.selI=null; return; }
+    lv.selI=id; el.classList.add("sel");
+  } else {
+    app.querySelectorAll(".card.meaning.sel").forEach(c=>c.classList.remove("sel"));
+    if(lv.selM===id){ lv.selM=null; return; }
+    lv.selM=id; el.classList.add("sel");
+  }
+  if(lv.selI!==null && lv.selM!==null) check();
+}
+
+function check(){
+  const lv=S.lv, L=LEVELS[S.level];
+  const iEl=app.querySelector(`.card.idiom[data-i="${lv.selI}"]`);
+  const mEl=app.querySelector(`.card.meaning[data-m="${lv.selM}"]`);
+  const [x,y]=center(mEl);
+  if(lv.selI===lv.selM){
+    lv.streak++; lv.bestStreak=Math.max(lv.bestStreak,lv.streak);
+    const mult = lv.streak>=5?3:lv.streak>=3?2:1;
+    const gold = lv.selI===lv.golden;
+    const pts = 100*mult*(gold?2:1);
+    lv.score+=pts; S.total+=pts; lv.matched.add(lv.selI);
+    [iEl,mEl].forEach(e=>{ e.classList.remove("sel","hint"); e.classList.add("done","pop"); e.disabled=true; });
+    Sound.match(lv.streak); if(mult>1) Sound.combo(); if(gold) Sound.golden();
+    floatText(x,y,"+"+pts+(gold?" 🥚":"")); burst(x,y,gold?18:10);
+    const g=$("#walker .goose"); g.classList.remove("flap","honk","walk"); void g.offsetWidth; g.classList.add(mult>1?"flap":"walk");
+    say(`“${L.pairs[lv.selI][2]}”`);
+    lv.selI=lv.selM=null; updateHUD(); syncMe();
+    if(lv.matched.size===L.pairs.length) setTimeout(()=>endLevel(true),650);
+  } else {
+    lv.streak=0; lv.mistakes++; S.mistakes++; lv.feathers--;
+    const before=S.total; S.total=Math.max(0,S.total-30); lv.score-=(before-S.total);
+    [iEl,mEl].forEach(e=>{ e.classList.remove("sel"); e.classList.add("bad"); setTimeout(()=>e.classList.remove("bad"),420); });
+    Sound.honk(); floatText(x,y,"−30",true);
+    const g=$("#walker .goose"); g.classList.remove("flap","honk","walk"); void g.offsetWidth; g.classList.add("honk");
+    say(lv.feathers>0 ? ["HONK! Not that one!","Oops, a feather fell off!","Try again, friend!"][Math.floor(Math.random()*3)] : "HONK… I'm out of feathers!");
+    lv.selI=lv.selM=null; updateHUD(); syncMe();
+    if(lv.feathers<=0){ setTimeout(()=>endLevel(false,"feathers"),450); return; }
+    lv.mixing=true; setTimeout(reshuffleAll,430);
+  }
+}
+
+/* every miss: the wind mixes up BOTH columns */
+function reshuffleAll(){
+  const lv=S.lv; lv.mixing=false; if(lv.over) return;
+  lv.idiomOrder = shuffle(lv.idiomOrder);
+  lv.meaningsOrder = shuffle(lv.meaningsOrder);
+  const iCol=$("#iCol"), mCol=$("#mCol");
+  const iBy=Object.fromEntries([...iCol.querySelectorAll(".card")].map(c=>[c.dataset.i,c]));
+  const mBy=Object.fromEntries([...mCol.querySelectorAll(".card")].map(c=>[c.dataset.m,c]));
+  lv.idiomOrder.forEach(i=>iCol.appendChild(iBy[String(i)]));
+  lv.meaningsOrder.forEach(m=>mCol.appendChild(mBy[String(m.id)]));
+  [...iCol.children,...mCol.children].forEach(c=>{ if(c.classList.contains("card") && !c.classList.contains("done")){ c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } });
+  say("Whoosh! The wind mixed up all the cards!");
+}
+
+function useHint(){
+  const lv=S.lv, L=LEVELS[S.level]; if(lv.over||lv.hintUsed||lv.mixing) return;
+  let target = lv.selI;
+  if(target===null || lv.matched.has(target)){
+    target = [...Array(L.pairs.length).keys()].find(i=>!lv.matched.has(i));
+    app.querySelectorAll(".card.idiom.sel").forEach(c=>c.classList.remove("sel"));
+    lv.selI=target; app.querySelector(`.card.idiom[data-i="${target}"]`).classList.add("sel");
+  }
+  lv.hintUsed=true;
+  const before=S.total; S.total=Math.max(0,S.total-50); lv.score-=(before-S.total);
+  const m=app.querySelector(`.card.meaning[data-m="${target}"]`); m.classList.add("hint");
+  Sound.hint(); const [x,y]=center($("#hintBtn")); floatText(x,y-20,"−50",true);
+  say("HONK HONK! Look at the glowing meaning!");
+  $("#hintBtn").disabled=true; updateHUD(); syncMe();
+}
+
+function say(t){ const s=$("#speech"); if(s) s.textContent=t; }
+
+function updateHUD(){
+  const lv=S.lv, L=LEVELS[S.level]; if(!lv || !$("#hScore")) return;
+  $("#hScore").textContent=S.total;
+  $("#hTime").textContent=Math.max(0,lv.time)+"s";
+  $("#hTimeCell").classList.toggle("warn",lv.time<=10);
+  const mult = lv.streak>=5?3:lv.streak>=3?2:1;
+  $("#hCombo").textContent="×"+mult+(lv.streak?` · ${lv.streak}`:"");
+  $("#hComboCell").classList.toggle("hot",mult>1);
+  $("#hFeathers").innerHTML=[0,1,2].map(i=>featherSVG(i>=lv.feathers)).join("");
+  const p = lv.matched.size/L.pairs.length;
+  $("#tFill").style.width=(p*100)+"%";
+  $("#walker").style.left=`calc(6px + (100% - 80px) * ${p})`;
+  $("#speech").style.left=`calc(84px + (100% - 160px) * ${p*0.6})`;
+}
+
+/* ================= END LEVEL ================= */
+function endLevel(won,reason){
+  const lv=S.lv, L=LEVELS[S.level]; if(lv.over) return; lv.over=true;
+  clearInterval(S.clock); Sound.stopMusic();
+  if(!won){
+    S.total=Math.max(0,S.total-lv.score); // roll back this level's points
+    syncMe();
+    Sound.lose();
+    overlay(`
+      <span class="badge">${L.name}</span>
+      <h2>${reason==="time"?"Time's up!":"Out of feathers!"}</h2>
+      <p class="sub">${reason==="time"?"The sun set before Gus crossed "+L.name+".":"Gus lost all three feathers."} You matched <b>${lv.matched.size}/${L.pairs.length}</b> idioms. Your score goes back to <b>${S.total}</b> for a fresh try.</p>
+      <div class="row"><button class="btn" id="retryBtn">Try ${L.name} again ▸</button></div>
+    `, ()=>{ $("#retryBtn").onclick=()=>{ closeOverlay(); showIntro(); }; });
+    return;
+  }
+  const timeBonus = lv.time*10, featherBonus = lv.feathers*50;
+  S.total += timeBonus+featherBonus;
+  const levelTotal = lv.score+timeBonus+featherBonus;
+  const stars = lv.mistakes===0 && !lv.hintUsed ? 3 : lv.mistakes<=2 ? 2 : 1;
+  S.stars[S.level]=stars;
+  const last = S.level===LEVELS.length-1;
+  if(last){ S.finishedAt=Date.now(); syncMe({status:"finished", level:3, finishedAt:S.finishedAt}); }
+  else syncMe({level:S.level+2});
+  Sound.win();
+  overlay(`
+    <span class="badge">${L.name} cleared</span>
+    <h2>${["Gate unlocked!","Storm survived!","Golden Pond reached!"][S.level]}</h2>
+    <div class="stars" aria-label="${stars} of 3 stars">${[1,2,3].map(n=>starSVG(n<=stars)).join("")}</div>
+    <dl class="tally">
+      <dt>Matches and combos</dt><dd>${lv.score}</dd>
+      <dt>Time bonus (${lv.time}s × 10)</dt><dd>+${timeBonus}</dd>
+      <dt>Feather bonus (${lv.feathers} × 50)</dt><dd>+${featherBonus}</dd>
+      <dt>Best streak</dt><dd>${lv.bestStreak}</dd>
+      <dt class="tot">Level total</dt><dd class="tot">${levelTotal}</dd>
+    </dl>
+    <div class="row"><button class="btn" id="nextBtn">${last?"See the class board ▸":"Fly to "+LEVELS[S.level+1].name+" ▸"}</button></div>
+  `, ()=>{ $("#nextBtn").onclick=()=>{ closeOverlay(); if(last) showWait(); else { S.level++; showIntro(); } }; });
+  burst(innerWidth/2,innerHeight/3,24);
+}
+
+/* ================= WAITING ROOM (after finishing) ================= */
+function rankOf(){ const r=ranked(Live.players).findIndex(p=>p.id===Live.myId); return r<0?null:r+1; }
+function reviewHTML(){
+  return `<div class="review-wrap"><table class="review">
+    <thead><tr><th>Idiom</th><th>Meaning</th><th>Example</th></tr></thead>
+    <tbody>${LEVELS.map(L=>`<tr class="lvh"><td colspan="3">${L.name} · ${L.cefr}</td></tr>`+L.pairs.map(p=>`<tr><td>${esc(p[0])}${GOOSE_IDIOMS.has(p[0])?" 🪿":""}</td><td>${esc(p[1])}</td><td class="ex">${esc(p[2])}</td></tr>`).join("")).join("")}</tbody>
+  </table></div>`;
+}
+function showWait(){
+  S.screen="wait";
+  const total=S.total, prev=bestScore(); if(total>prev) store.set("goose-best",String(total));
+  document.body.className="l3";
+  app.innerHTML = `
+  <section class="panel title-card">
+    <div>
+      <div class="kicker">Golden Pond reached · ${esc(S.name)}</div>
+      <h1>${total} points</h1>
+      <div class="stars" aria-label="${S.stars.reduce((a,b)=>a+b,0)} of 9 stars">${[0,1,2].map(i=>[1,2,3].map(n=>starSVG(n<=S.stars[i])).join("")).join('<span style="width:10px"></span>')}</div>
+      <p class="story">Great flying! Wait here for your classmates. The final ranking appears on every screen when the whole flock has finished.</p>
+    </div>
+    <div class="hero-goose">${gooseSVG()}</div>
+  </section>
+  <section class="panel lb-panel">
+    <div class="lb-head"><h3>Class scoreboard</h3><span class="live-dot">Live</span></div>
+    <div class="wait" id="waitInfo">${waitHTML()}</div>
+    <ol class="lb" data-lb="full">${lbHTML(0)}</ol>
+    <div id="teacherSlot">${teacherHTML()}</div>
+  </section>
+  <section class="panel">
+    <details class="more"><summary>Idiom review · use them in IELTS Speaking</summary>${reviewHTML()}</details>
+  </section>`;
+  bindTeacher();
+  burst(innerWidth/2,innerHeight/4,30);
+  if(Live.ready && (Live.status==="finished" || allFinished())) showRanking();
+}
+
+/* ================= FINAL RANKING ================= */
+function showRanking(){
+  if(S.screen==="ranking") return;
+  const fromPlay = S.screen==="play"||S.screen==="intro";
+  if(S.clock) clearInterval(S.clock);
+  if(S.lv) S.lv.over=true;
+  S.screen="ranking";
+  Sound.stopMusic(); closeOverlay(); Sound.win();
+  document.body.className="l3";
+  const list=ranked(Live.players);
+  const podSlot=(p,cls,place)=>p
+    ? `<div class="pod ${cls}">${gooseSVG()}<span class="nm">${esc(String(p.name||"Goose"))}</span><span class="sc">${p.score||0} pts</span><div class="block">${place}</div></div>`
+    : `<div class="pod ${cls} vacant"><div class="block">${place}</div></div>`;
+  const me=rankOf();
+  app.innerHTML = `
+  <section class="panel" style="display:flex;flex-direction:column;gap:16px">
+    <div class="kicker">The flock has landed</div>
+    <h1 style="font-size:clamp(2rem,6vw,3.2rem)">Final ranking</h1>
+    ${me && S.name ? `<p class="story" style="margin:0">${esc(S.name)}, you placed <b>#${me}</b> of ${list.length} with <b>${S.total}</b> points.${fromPlay?" The teacher ended the round before you finished.":""}</p>`:""}
+    <div class="podium">${podSlot(list[1],"p2","2")}${podSlot(list[0],"p1","1")}${podSlot(list[2],"p3","3")}</div>
+  </section>
+  <section class="panel lb-panel">
+    <div class="lb-head"><h3>All players</h3><span class="lb-note">${list.length} players · ${finishedCount()} finished</span></div>
+    <ol class="lb" style="max-height:none">${lbHTML(0)}</ol>
+    <div id="teacherSlot">${teacherHTML()}</div>
+  </section>
+  ${S.name?`<section class="panel"><details class="more"><summary>Idiom review · use them in IELTS Speaking</summary>${reviewHTML()}</details></section>`:""}
+  <div class="row"><a class="btn" href="#" id="againBtn" style="text-decoration:none">Back to the start ▸</a></div>`;
+  bindTeacher();
+  $("#againBtn").onclick=e=>{ e.preventDefault(); history.replaceState(null,"",location.pathname+location.search); S={screen:"start"}; showStart(); };
+  burst(innerWidth/2,innerHeight/4,40);
+}
+
+/* ================= OVERLAY ================= */
+function overlay(html,bind){
+  closeOverlay();
+  const o=document.createElement("div"); o.className="overlay"; o.id="ov";
+  o.innerHTML=`<div class="panel modal" role="dialog" aria-modal="true">${html}</div>`;
+  document.body.appendChild(o); bind&&bind();
+  const f=o.querySelector("button"); f&&f.focus();
+}
+function closeOverlay(){ const o=$("#ov"); o&&o.remove(); }
+
+showStart();
+Live.init();
+})();
+</script>
+
+</body>
+</html>
